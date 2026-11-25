@@ -105,7 +105,17 @@ async function main(): Promise<void> {
       };
 
       if (url.searchParams.get("state") !== state) {
-        return fail("State mismatch - ignoring this callback.");
+        // A consent page from an earlier run (or a forged request). Don't use
+        // its code, and keep waiting for the login this run started.
+        res.writeHead(400, { "Content-Type": "text/html" });
+        res.end(
+          "<h2>Out-of-date Xero login link</h2><p>This page came from an earlier login attempt. " +
+            "Close it and open the newest link printed in the terminal (the login is still waiting).</p>",
+        );
+        console.log(
+          "\nIgnored a callback from an out-of-date login link. Still waiting - use the newest link above.",
+        );
+        return;
       }
       const error = url.searchParams.get("error");
       if (error) return fail(`Xero returned: ${error}`);
