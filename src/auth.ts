@@ -25,7 +25,7 @@ import {
 
 dotenv.config();
 
-const LOGIN_TIMEOUT_MS = 5 * 60_000;
+const LOGIN_TIMEOUT_MS = 15 * 60_000;
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -114,8 +114,10 @@ async function main(): Promise<void> {
           "<h2>Out-of-date Xero login link</h2><p>This page came from an earlier login attempt. " +
             "Close it and open the newest link printed in the terminal (the login is still waiting).</p>",
         );
+        const got = url.searchParams.get("state") ?? "";
         console.log(
-          "\nIgnored a callback from an out-of-date login link. Still waiting - use the newest link above.",
+          `\nIgnored a callback from an out-of-date login link (state ${got.slice(0, 6) || "missing"}..., ` +
+            `expected ${state.slice(0, 6)}...). Still waiting - use the newest link above.`,
         );
         return;
       }
@@ -199,7 +201,9 @@ async function main(): Promise<void> {
   console.log(`Waiting for the Xero callback on ${redirectUri}`);
   console.log("If the browser doesn't open, visit:\n");
   console.log(consentUrl + "\n");
-  openBrowser(consentUrl);
+  if (!/^(1|true|yes)$/i.test(process.env.XERO_AUTH_NO_BROWSER ?? "")) {
+    openBrowser(consentUrl);
+  }
 
   try {
     await result;

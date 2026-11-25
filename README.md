@@ -171,6 +171,7 @@ the server then keeps itself authorised with the rotating refresh token.
 | `XERO_TENANT_ID` | Optional. Organisation to use when the login authorised several (default: the one chosen at login) |
 | `XERO_REDIRECT_URI` | Optional. Default `http://localhost:49831/callback`; must match the app |
 | `XERO_SCOPES` | Optional. Scopes requested at login |
+| `XERO_AUTH_NO_BROWSER` | Optional. `1` = `npm run auth` only prints the login link instead of opening a browser |
 
 Precedence: `XERO_CLIENT_BEARER_TOKEN` > `XERO_TOKEN_FILE` > Custom Connection.
 A refresh token expires after 60 days unused; if that happens, run `npm run auth` again.
