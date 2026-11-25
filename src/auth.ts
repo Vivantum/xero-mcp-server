@@ -49,7 +49,9 @@ function escapeHtml(value: string): string {
 function openBrowser(url: string): void {
   const [cmd, args] =
     process.platform === "win32"
-      ? ["explorer.exe", [url]]
+      ? // Hands the URL to the default browser. explorer.exe can open a File
+        // Explorer window instead, and cmd's `start` mangles the & in the URL.
+        ["rundll32.exe", ["url.dll,FileProtocolHandler", url]]
       : process.platform === "darwin"
         ? ["open", [url]]
         : ["xdg-open", [url]];
