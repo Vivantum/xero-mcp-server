@@ -8,12 +8,14 @@ import {
 } from "xero-node";
 
 import { ensureError } from "../helpers/ensure-error.js";
+import { listConnections, RefreshTokenManager } from "./oauth.js";
 
 dotenv.config();
 
 const client_id = process.env.XERO_CLIENT_ID;
 const client_secret = process.env.XERO_CLIENT_SECRET;
 const bearer_token = process.env.XERO_CLIENT_BEARER_TOKEN;
+const token_file = process.env.XERO_TOKEN_FILE;
 const grant_type = "client_credentials";
 
 if (!bearer_token && (!client_id || !client_secret)) {
@@ -220,12 +222,59 @@ class BearerTokenXeroClient extends MCPXeroClient {
   }
 }
 
+/**
+ * Xero Web app using OAuth 2.0 authorization code + refresh token.
+ * Run `npm run auth` once to create XERO_TOKEN_FILE.
+ */
+class OAuthRefreshTokenXeroClient extends MCPXeroClient {
+  private readonly tokens: RefreshTokenManager;
+
+  constructor(config: {
+    clientId: string;
+    clientSecret: string;
+    tokenFile: string;
+  }) {
+    super();
+    this.tokens = new RefreshTokenManager(config);
+  }
+
+  async authenticate(): Promise<void> {
+    const token = await this.tokens.getAccessToken();
+
+    this.setTokenSet({
+      access_token: token.accessToken,
+      expires_in: token.expiresIn,
+      token_type: token.tokenType,
+    });
+
+    if (!this.tenantId) {
+      this.tenantId =
+        process.env.XERO_TENANT_ID ||
+        this.tokens.storedTenantId ||
+        (await listConnections(token.accessToken))[0]?.tenantId ||
+        "";
+      if (!this.tenantId) {
+        throw new Error(
+          "No Xero organisation is connected to this login. Re-run: npm run auth",
+        );
+      }
+    }
+  }
+}
+
+// Precedence: bearer token > OAuth token file > Custom Connection
 export const xeroClient = bearer_token
   ? new BearerTokenXeroClient({
       bearerToken: bearer_token,
     })
-  : new CustomConnectionsXeroClient({
-      clientId: client_id!,
-      clientSecret: client_secret!,
-      grantType: grant_type,
-    });
+  : token_file
+    ? new OAuthRefreshTokenXeroClient({
+        clientId: client_id!,
+        clientSecret: client_secret!,
+        tokenFile: token_file,
+      })
+    : new CustomConnectionsXeroClient({
+        clientId: client_id!,
+        clientSecret: client_secret!,
+        grantType: grant_type,
+      });

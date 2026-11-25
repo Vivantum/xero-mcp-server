@@ -36,7 +36,7 @@ NOTE: To use Payroll-specific queries, the region should be either NZ or UK.
 
 ### Authentication
 
-There are 2 modes of authentication supported in the Xero MCP server:
+There are 3 modes of authentication supported in the Xero MCP server:
 
 #### 1. Custom Connections
 
@@ -134,6 +134,46 @@ payroll.employees
 payroll.timesheets
 ```
 
+#### 3. OAuth 2.0 Web app with refresh token (fork addition)
+
+Uses a standard Xero **Web app** instead of a Custom Connection (new Custom
+Connections can't be created from 1 Dec 2026). You log in once in the browser;
+the server then keeps itself authorised with the rotating refresh token.
+
+1. At [developer.xero.com/app/manage](https://developer.xero.com/app/manage) create a
+   **Web app** with redirect URI `http://localhost:49831/callback`, and enable the
+   scopes in [`DEFAULT_OAUTH_SCOPES`](src/clients/oauth.ts) (or set `XERO_SCOPES`).
+2. Build, then log in (opens the browser):
+   ```bash
+   npm ci && npm run build
+   XERO_CLIENT_ID=... XERO_CLIENT_SECRET=... XERO_TOKEN_FILE=/path/to/tokens.json npm run auth
+   ```
+3. Run the server with the same three variables:
+   ```json
+   {
+     "mcpServers": {
+       "xero": {
+         "command": "node",
+         "args": ["/path/to/xero-mcp-server/dist/index.js"],
+         "env": {
+           "XERO_CLIENT_ID": "your_client_id_here",
+           "XERO_CLIENT_SECRET": "your_client_secret_here",
+           "XERO_TOKEN_FILE": "/path/to/tokens.json"
+         }
+       }
+     }
+   }
+   ```
+
+| Variable | Purpose |
+|---|---|
+| `XERO_TOKEN_FILE` | Enables this mode. Holds the refresh token - keep it private and out of git |
+| `XERO_TENANT_ID` | Optional. Organisation to use when the login authorised several (default: the one chosen at login) |
+| `XERO_REDIRECT_URI` | Optional. Default `http://localhost:49831/callback`; must match the app |
+| `XERO_SCOPES` | Optional. Scopes requested at login |
+
+Precedence: `XERO_CLIENT_BEARER_TOKEN` > `XERO_TOKEN_FILE` > Custom Connection.
+A refresh token expires after 60 days unused; if that happens, run `npm run auth` again.
 
 ### Available MCP Commands
 
